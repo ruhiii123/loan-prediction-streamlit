@@ -7,7 +7,15 @@ import numpy as np
 import os
 
 # --- Path to the saved model ---
+import os
+import subprocess
+
 MODEL_PATH = "models/loan_pipeline.joblib"
+
+# If model is missing, auto-train it
+if not os.path.exists(MODEL_PATH):
+    subprocess.run(["python", "auto_train.py"], check=False)
+
 
 # --- Load model ---
 @st.cache_resource
