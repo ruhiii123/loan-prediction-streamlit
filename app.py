@@ -5,17 +5,17 @@ import pandas as pd
 import joblib
 import numpy as np
 import os
-
-# --- Path to the saved model ---
-import os
 import subprocess
 
+# --- Auto-train model if missing ---
 MODEL_PATH = "models/loan_pipeline.joblib"
-
-# If model is missing, auto-train it
 if not os.path.exists(MODEL_PATH):
-    subprocess.run(["python", "auto_train.py"], check=False)
-
+    st.warning("⚙️ Model not found. Training new model automatically...")
+    try:
+        subprocess.run(["python", "auto_train.py"], check=True)
+        st.success("✅ Model trained successfully!")
+    except Exception as e:
+        st.error(f"❌ Error while training model: {e}")
 
 # --- Load model ---
 @st.cache_resource
@@ -27,15 +27,16 @@ def load_model():
 
 model = load_model()
 
-
+# --- App title ---
 st.title("💸 Loan Eligibility Predictor")
 st.markdown("Enter applicant details (left) or upload a CSV for batch predictions. Click **Predict** or **Run batch prediction**.")
 
 if model is None:
-    st.error("⚠️ Model not found. Run `train_model.py` first to create `models/loan_pipeline.joblib`.")
+    st.error("⚠️ Model not found. Please add `loan_pipeline.joblib` or `loan_data.csv` to retrain.")
 else:
     option = st.sidebar.radio("Select Input Mode", ["Manual form (single)", "Upload CSV (batch)"])
 
+    # --- Manual input form ---
     if option == "Manual form (single)":
         gender = st.selectbox("Gender", ["Male", "Female"])
         married = st.selectbox("Married", ["Yes", "No"])
@@ -45,7 +46,7 @@ else:
         applicant_income = st.number_input("Applicant Income", 0)
         coapplicant_income = st.number_input("Coapplicant Income", 0)
         loan_amount = st.number_input("Loan Amount", 0)
-        loan_term = st.selectbox("Loan Term (in months)", [360, 180, 120, 60])
+        loan_term = st.selectbox("Loan Term (months)", [360, 180, 120, 60])
         credit_history = st.selectbox("Credit History (1=Yes, 0=No)", [1, 0])
         property_area = st.selectbox("Property Area", ["Urban", "Semiurban", "Rural"])
 
@@ -72,6 +73,7 @@ else:
             st.success(f"Prediction: {'Approved ✅' if pred == 'Y' else 'Rejected ❌'}")
             st.info(f"Approval Probability: {prob:.2f}")
 
+    # --- Batch CSV upload ---
     else:
         file = st.file_uploader("Upload CSV file", type=["csv"])
         if file is not None:
@@ -80,3 +82,8 @@ else:
             df["Prediction"] = np.where(preds == "Y", "Approved", "Rejected")
             st.dataframe(df)
             st.download_button("Download Predictions", df.to_csv(index=False), "predictions.csv", "text/csv")
+
+
+
+       
+           
