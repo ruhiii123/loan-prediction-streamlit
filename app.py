@@ -5,20 +5,49 @@ import pandas as pd
 import joblib
 import numpy as np
 import os
-import subprocess
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.ensemble import RandomForestClassifier
 
-# --- Auto-train model if missing ---
 MODEL_PATH = "models/loan_pipeline.joblib"
-if not os.path.exists(MODEL_PATH):
-    st.warning("⚙️ Model not found. Training new model automatically...")
+
+# --- Inline training if model missing ---
+def train_inline_model():
+    st.info("⚙️ Model not found. Training new model automatically...")
     try:
-        subprocess.run(["streamlit", "run", "auto_train.py"], shell=True)
+        df = pd.read_csv("data/loan_data.csv")
+        X = df.drop("Loan_Status", axis=1)
+        y = df["Loan_Status"]
 
-        st.success("✅ Model trained successfully!")
+        cat_cols = [c for c in X.columns if X[c].dtype == "object"]
+        num_cols = [c for c in X.columns if X[c].dtype != "object"]
+
+        preprocessor = ColumnTransformer([
+            ("cat", OneHotEncoder(handle_unknown="ignore"), cat_cols),
+            ("num", StandardScaler(), num_cols)
+        ])
+
+        pipe = Pipeline([
+            ("preprocessor", preprocessor),
+            ("model", RandomForestClassifier(n_estimators=100, random_state=42))
+        ])
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        pipe.fit(X_train, y_train)
+
+        os.makedirs("models", exist_ok=True)
+        joblib.dump(pipe, MODEL_PATH)
+        st.success("✅ Model trained and saved!")
     except Exception as e:
-        st.error(f"❌ Error while training model: {e}")
+        st.error(f"❌ Error training model: {e}")
 
-# --- Load model ---
+# --- Train if model missing ---
+if not os.path.exists(MODEL_PATH):
+    train_inline_model()
+
+# --- Always reload model after possible training ---
 @st.cache_resource
 def load_model():
     if os.path.exists(MODEL_PATH):
@@ -28,16 +57,15 @@ def load_model():
 
 model = load_model()
 
-# --- App title ---
+# --- App Interface ---
 st.title("💸 Loan Eligibility Predictor")
 st.markdown("Enter applicant details (left) or upload a CSV for batch predictions. Click **Predict** or **Run batch prediction**.")
 
 if model is None:
-    st.error("⚠️ Model not found. Please add `loan_pipeline.joblib` or `loan_data.csv` to retrain.")
+    st.error("⚠️ Model not found. Please ensure `loan_data.csv` is uploaded to the `data` folder.")
 else:
     option = st.sidebar.radio("Select Input Mode", ["Manual form (single)", "Upload CSV (batch)"])
 
-    # --- Manual input form ---
     if option == "Manual form (single)":
         gender = st.selectbox("Gender", ["Male", "Female"])
         married = st.selectbox("Married", ["Yes", "No"])
@@ -74,7 +102,6 @@ else:
             st.success(f"Prediction: {'Approved ✅' if pred == 'Y' else 'Rejected ❌'}")
             st.info(f"Approval Probability: {prob:.2f}")
 
-    # --- Batch CSV upload ---
     else:
         file = st.file_uploader("Upload CSV file", type=["csv"])
         if file is not None:
@@ -84,7 +111,5 @@ else:
             st.dataframe(df)
             st.download_button("Download Predictions", df.to_csv(index=False), "predictions.csv", "text/csv")
 
-
-
-       
-           
+        
+  
