@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="💸 Loan Eligibility Predictor", page_icon="💰", layout="wide")
+
 import pandas as pd
 import joblib
 import numpy as np
@@ -17,7 +19,6 @@ def load_model():
 
 model = load_model()
 
-st.set_page_config(page_title="💸 Loan Eligibility Predictor", page_icon="💰", layout="wide")
 
 st.title("💸 Loan Eligibility Predictor")
 st.markdown("Enter applicant details (left) or upload a CSV for batch predictions. Click **Predict** or **Run batch prediction**.")
