@@ -12,7 +12,8 @@ MODEL_PATH = "models/loan_pipeline.joblib"
 if not os.path.exists(MODEL_PATH):
     st.warning("⚙️ Model not found. Training new model automatically...")
     try:
-        subprocess.run(["python", "auto_train.py"], check=True)
+        subprocess.run(["streamlit", "run", "auto_train.py"], shell=True)
+
         st.success("✅ Model trained successfully!")
     except Exception as e:
         st.error(f"❌ Error while training model: {e}")
